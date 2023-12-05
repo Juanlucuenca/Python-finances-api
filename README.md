@@ -1,5 +1,7 @@
 # Dollar Api Scrapper
 
+(Todavia esta todo el BETA para probar que seae viable y funcional)
+
 ### (Funcionalidades / End-Points)
 
 - Scrapper de la pagina [dolarhoy](https://dolarhoy.com/) para obtener las princiaples **cotizaciones de los diferentes dolares**.
