@@ -20,6 +20,37 @@ async def startup_event():
     create_db_and_tables()
 
 
+@app.get("/dolarMayorista")
+def read_dolar_mayorista():
+    # Formateamos la fecha actual
+    formated_datetime = datetime.datetime.now().strftime("%d/%m, %H:%M")
+
+    # Solicitamos la pagina y la parseamos
+    website_content = requests.get(
+        "https://es.investing.com/currencies/usd-ars").text
+
+    soup = BeautifulSoup(website_content, 'lxml')
+
+    precio_dolar_mayorista = soup.find(
+        'ul', class_='trading-hours_trading-hours__epZb0').find_all('li', class_='list_list__item__dwS6E')[1].find_all('span')
+
+    precio_compra = precio_dolar_mayorista[0].text
+    precio_venta = precio_dolar_mayorista[2].text
+
+    precio_compra = round(float(precio_compra.replace(',', '.')), 2)
+    precio_venta = round(float(precio_venta.replace(',', '.')), 2)
+
+    dolar_mayorista = {
+        'id': 'dolar_mayorista_investing',
+        'nombre': "Dolar Mayorista (investing)",
+        'compra': precio_compra,
+        'venta': precio_venta,
+        'fechaActualizacion': 'Fecha de actualización: ' + formated_datetime
+    }
+
+    return dolar_mayorista
+
+
 @app.get("/dolares")
 def read_dolars():
 
@@ -66,7 +97,6 @@ def read_dolars():
                 'fechaActualizacion': 'Fecha de actualización: ' + formated_datetime
             }
         except Exception as e:
-            print(e)
             continue
 
         dolar_list.append(dolar)
@@ -75,7 +105,6 @@ def read_dolars():
         try:
             title = bloque.find('div', class_='title').getText().strip()
         except Exception as e:
-            print(e)
             continue
 
         if title and 'Dólar Mayorista' in title:
@@ -86,8 +115,8 @@ def read_dolars():
             dollars_id = unidecode((title).lower().replace(" ", "_"))
 
             dolar = {
-                'id': dollars_id,
-                'nombre': title,
+                'id': dollars_id + "_dolarhoy",
+                'nombre': title + "(DolarHoy)",
                 'compra': buy,
                 'venta': sell,
                 'fechaActualizacion': 'Fecha de actualización: ' + formated_datetime
@@ -95,6 +124,10 @@ def read_dolars():
 
             dolar_list.append(dolar)
             break
+
+    dolar_mayorista_investing = read_dolar_mayorista()
+
+    dolar_list.append(dolar_mayorista_investing)
 
     return dolar_list
 
@@ -132,14 +165,15 @@ def calc_mac():
         name = dolar['nombre']
         sell_price = dolar['venta']
 
-        if (dollar_id == 'dolar_oficial_promedio'):
+        if (dollar_id == 'dolar_oficial'):
             indice_mac = (3.5 * 742.0 * uva['valor'] /
                           386.91) / sell_price
 
         elif (dollar_id == 'dolar_blue' or dollar_id == 'dolar_bolsa' or dollar_id == 'contado_con_liqui'):
             indice_mac = (2.25 * 1155.0 * uva['valor'] /
                           386.91) / sell_price
-        elif (dollar_id == 'dolar_mayorista'):
+
+        elif (dollar_id == 'dolar_mayorista_investing'):
             indice_mac = (3.345*777.0*uva['valor'] / 386.91) / sell_price
             dollar_id = dollar_id + '_sincepo'
             name = name + ' (SINCEPO)'
@@ -177,8 +211,8 @@ def create_mac(db: Session = Depends(get_session)):
         "dolar_blue": indices_mac_response[0]["indice_mac"],
         "dolar_bolsa": indices_mac_response[2]["indice_mac"],
         "dolar_liqui": indices_mac_response[3]["indice_mac"],
-        "dolar_mayorista": indices_mac_response[5]["indice_mac"],
-        "dolar_mayorista_sincepo": indices_mac_response[4]["indice_mac"]
+        "dolar_mayorista_investing": indices_mac_response[5]["indice_mac"],
+        "dolar_mayorista_investing_sincepo": indices_mac_response[4]["indice_mac"]
     }
 
     nuevo_indice = IndiceBigMac(
@@ -186,8 +220,8 @@ def create_mac(db: Session = Depends(get_session)):
         dolar_blue=response_map["dolar_blue"],
         dolar_bolsa=response_map["dolar_bolsa"],
         dolar_liqui=response_map["dolar_liqui"],
-        dolar_mayorista=response_map["dolar_mayorista"],
-        dolar_mayorista_sincepo=response_map["dolar_mayorista_sincepo"]
+        dolar_mayorista=response_map["dolar_mayorista_investing"],
+        dolar_mayorista_sincepo=response_map["dolar_mayorista_investing_sincepo"]
     )
 
     db.add(nuevo_indice)
