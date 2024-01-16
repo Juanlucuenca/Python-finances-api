@@ -256,3 +256,38 @@ def analisis_dolares(db: Session = Depends(get_session)):
             resultados[tipo] = {"promedio": None, "desvio_estandar": None}
 
     return resultados
+@app.get('/obligaciones')
+def get_obligaciones():
+    # URL and headers based on the provided cURL command
+    url = 'https://open.bymadata.com.ar/vanoms-be-core/rest/api/bymadata/free/negociable-obligations'
+    headers = {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'es-US,es-419;q=0.9,es;q=0.8,en;q=0.7',
+        'Connection': 'keep-alive',
+        'Content-Type': 'application/json',
+        'Cookie': 'JSESSIONID=B66C6B881A9D68B218F0207EBAFFC0C3; _fbp=fb.2.1705410945340.696063700; _gid=GA1.3.557642713.1705410949; _ga=GA1.1.396957812.1705410949; _ga_7RDWSKPMBV=GS1.1.1705425982.2.1.1705428062.60.0.0',
+        'Origin': 'https://open.bymadata.com.ar',
+        'Referer': 'https://open.bymadata.com.ar/',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"'
+    }
+
+    # Data to be sent in request body
+    data = {
+        "excludeZeroPxAndQty": True,
+        "T2": True,
+        "T1": False,
+        "T0": False,
+        "Content-Type": "application/json"
+    }
+
+    # Sending POST request
+    response = requests.post(url, json=data, headers=headers)
+
+    # Output the status code and response for verification
+    return response.json()
