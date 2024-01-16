@@ -25,6 +25,7 @@ def read_dolar_mayorista():
     # Formateamos la fecha actual
     formated_datetime = datetime.datetime.now().strftime("%d/%m, %H:%M")
 
+
     # Solicitamos la pagina y la parseamos
     website_content = requests.get(
         "https://es.investing.com/currencies/usd-ars").text
@@ -32,19 +33,15 @@ def read_dolar_mayorista():
     soup = BeautifulSoup(website_content, 'lxml')
 
     precio_dolar_mayorista = soup.find(
-        'ul', class_='trading-hours_trading-hours__epZb0').find_all('li', class_='list_list__item__dwS6E')[1].find_all('span')
+        'div', {'data-test': 'instrument-price-last'}).getText()
 
-    precio_compra = precio_dolar_mayorista[0].text
-    precio_venta = precio_dolar_mayorista[2].text
-
-    precio_compra = round(float(precio_compra.replace(',', '.')), 2)
-    precio_venta = round(float(precio_venta.replace(',', '.')), 2)
+    precio_formatted = round(float(precio_dolar_mayorista.replace(',', '.')), 2)
 
     dolar_mayorista = {
         'id': 'dolar_mayorista_investing',
         'nombre': "Dolar Mayorista (investing)",
-        'compra': precio_compra,
-        'venta': precio_venta,
+        'compra': precio_formatted,
+        'venta': precio_formatted,
         'fechaActualizacion': 'Fecha de actualización: ' + formated_datetime
     }
 
