@@ -283,8 +283,38 @@ def get_obligaciones():
         "Content-Type": "application/json"
     }
 
-    # Sending POST request
+    # Enviando solicitud POST
     response = requests.post(url, json=data, headers=headers)
+    list_of_data = response.json()  # Esto es una lista de objetos
 
-    # Output the status code and response for verification
-    return response.json()
+    # Inicializamos una lista para los datos mapeados
+    mapped_data_list = []
+
+    # Iteramos sobre cada objeto en la lista
+    for data in list_of_data:
+        # Mapeo de los datos recibidos a los nombres de la tabla
+        mapped_data = {
+            "Especie": data.get("symbol", ""),
+            "Vto.": data.get("maturityDate", ""),
+            "Moneda": data.get("denominationCcy", ""),
+            "C. Cpra.": data.get("quantityBid", 0),
+            "P. Cpra.": data.get("bidPrice", 0.0),
+            "P. Vta.": data.get("offerPrice", 0.0),
+            "C. Vta.": data.get("quantityOffer", 0),
+            "Apertura": data.get("openingPrice", 0.0),
+            "Mínimo": data.get("tradingLowPrice", 0.0),
+            "Máximo": data.get("tradingHighPrice", 0.0),
+            "Último": data.get("trade", 0.0),
+            "Cierre Ant.": data.get("previousClosingPrice", 0.0),
+            "Cierre": data.get("closingPrice", 0.0),
+            "Dir.": "↑" if data.get("tickDirection", 0) > 0 else "↓" if data.get("tickDirection", 0) < 0 else "→",
+            "Var.": data.get("imbalance", 0.0),
+            "Volumen": data.get("volume", 0),
+            "Vol. Monto": data.get("volumeAmount", 0.0),
+            "Vwap": data.get("vwap", 0.0),
+            "Hora": data.get("tradeHour", "")
+        }
+        mapped_data_list.append(mapped_data)
+
+    # Devolver la lista de datos mapeados
+    return mapped_data_list
