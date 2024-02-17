@@ -9,8 +9,7 @@ from database import engine
 def tarea_programada():
     with Session(engine) as session:
         create_mac(session)
-
-
+        
 # Programar la tarea
 schedule.every().day.at("12:00").do(tarea_programada)
 schedule.every().day.at("15:00").do(tarea_programada)

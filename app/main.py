@@ -9,8 +9,29 @@ from unidecode import unidecode
 from schemas import IndiceBigMacCreate
 from models import IndiceBigMac
 from database import create_db_and_tables, get_session
+from fastapi.middleware.cors import CORSMiddleware
+
+import json
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import NoSuchElementException
+
 
 app = FastAPI()
+
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Inicializa la base de datos (si es necesario)
 
@@ -255,66 +276,72 @@ def analisis_dolares(db: Session = Depends(get_session)):
     return resultados
 @app.get('/obligaciones')
 def get_obligaciones():
-    # URL and headers based on the provided cURL command
-    url = 'https://open.bymadata.com.ar/vanoms-be-core/rest/api/bymadata/free/negociable-obligations'
-    headers = {
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'es-US,es-419;q=0.9,es;q=0.8,en;q=0.7',
-        'Connection': 'keep-alive',
-        'Content-Type': 'application/json',
-        'Cookie': 'JSESSIONID=B66C6B881A9D68B218F0207EBAFFC0C3; _fbp=fb.2.1705410945340.696063700; _gid=GA1.3.557642713.1705410949; _ga=GA1.1.396957812.1705410949; _ga_7RDWSKPMBV=GS1.1.1705425982.2.1.1705428062.60.0.0',
-        'Origin': 'https://open.bymadata.com.ar',
-        'Referer': 'https://open.bymadata.com.ar/',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'same-origin',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"macOS"'
-    }
+    # Configurar las opciones para Chrome en modo headless
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Asegura que Chrome se ejecute en modo headless
+    chrome_options.add_argument("--no-sandbox")  # Bypass OS security model, REQUIRED on Linux
+    chrome_options.add_argument("--disable-gpu")  # Aplicable para windows os only
+    chrome_options.add_argument('start-maximized') # maximiza la ventana del navegador
+    chrome_options.add_argument('disable-infobars')
+    chrome_options.add_argument('--disable-extensions')
 
-    # Data to be sent in request body
-    data = {
-        "excludeZeroPxAndQty": True,
-        "T2": True,
-        "T1": False,
-        "T0": False,
-        "Content-Type": "application/json"
-    }
+    # Iniciar el navegador en modo headless
+    driver = webdriver.Chrome(options=chrome_options)
 
-    # Enviando solicitud POST
-    response = requests.post(url, json=data, headers=headers)
-    list_of_data = response.json()  # Esto es una lista de objetos
+    # Ahora puedes navegar y realizar acciones como lo harías normalmente
+    driver.get("https://iol.invertironline.com/mercado/cotizaciones/argentina/obligaciones-negociables/todos")
+    print(driver.title)
 
-    # Inicializamos una lista para los datos mapeados
-    mapped_data_list = []
+    # Espera hasta que el elemento select esté presente en la página
+    select_element = WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.NAME, "cotizaciones_length"))
+    )
 
-    # Iteramos sobre cada objeto en la lista
-    for data in list_of_data:
-        # Mapeo de los datos recibidos a los nombres de la tabla
-        mapped_data = {
-            "Especie": data.get("symbol", ""),
-            "Vto.": data.get("maturityDate", ""),
-            "Moneda": data.get("denominationCcy", ""),
-            "C. Cpra.": data.get("quantityBid", 0),
-            "P. Cpra.": data.get("bidPrice", 0.0),
-            "P. Vta.": data.get("offerPrice", 0.0),
-            "C. Vta.": data.get("quantityOffer", 0),
-            "Apertura": data.get("openingPrice", 0.0),
-            "Mínimo": data.get("tradingLowPrice", 0.0),
-            "Máximo": data.get("tradingHighPrice", 0.0),
-            "Último": data.get("trade", 0.0),
-            "Cierre Ant.": data.get("previousClosingPrice", 0.0),
-            "Cierre": data.get("closingPrice", 0.0),
-            "Dir.": "↑" if data.get("tickDirection", 0) > 0 else "↓" if data.get("tickDirection", 0) < 0 else "→",
-            "Var.": data.get("imbalance", 0.0),
-            "Volumen": data.get("volume", 0),
-            "Vol. Monto": data.get("volumeAmount", 0.0),
-            "Vwap": data.get("vwap", 0.0),
-            "Hora": data.get("tradeHour", "")
-        }
-        mapped_data_list.append(mapped_data)
+    # Crea un objeto Select usando el elemento encontrado
+    select_obj = Select(select_element)
 
-    # Devolver la lista de datos mapeados
-    return mapped_data_list
+    # Selecciona la opción por su valor
+    select_obj.select_by_value("-1")
+
+    tabla = WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.ID, "cotizaciones"))
+    )
+
+    # Extrae todas las filas de la tabla
+    filas = tabla.find_elements(By.TAG_NAME, "tr")
+
+    # Lista para almacenar los datos de cada fila
+    datos_tabla = []
+
+    # Itera sobre cada fila
+    for fila in filas:
+        celdas = fila.find_elements(By.TAG_NAME, "td")  # o "th" si es necesario
+        fila_datos = []
+
+        for index, celda in enumerate(celdas):
+            if index == 0:
+                try:
+                    # Intenta obtener el atributo 'data-symbol' del elemento 'a'
+                    enlace = celda.find_element(By.TAG_NAME, "a")
+                    simbolo = enlace.get_attribute("data-symbol")
+                    fila_datos.append(simbolo)
+                except NoSuchElementException:
+                    # Si no hay un elemento 'a', agrega un valor predeterminado o deja la celda vacía
+                    fila_datos.append("Symbol")  # o puedes usar "" para una celda vacía
+            else:
+                fila_datos.append(celda.text)
+
+        datos_tabla.append(fila_datos)
+
+    # Suponiendo que la primera fila contiene los encabezados
+    encabezados = datos_tabla[0]
+    datos_json = []
+
+    # Itera sobre las filas restantes y crea un diccionario para cada una
+    for fila in datos_tabla[1:]:
+        fila_dict = dict(zip(encabezados, fila))
+        datos_json.append(fila_dict)
+        
+    driver.quit()
+
+    return datos_json
