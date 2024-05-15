@@ -11,3 +11,9 @@ class IndiceBigMac(SQLModel, table=True):
     dolar_liqui: float
     dolar_mayorista: float
     dolar_mayorista_sincepo: float
+
+class Dolares(SQLModel, table=True):
+    id: int = Field(default=None, primary_key=True)
+    compra: float
+    venta: float
+    fechaActualizacion: datetime = Field(default_factory=datetime.now)

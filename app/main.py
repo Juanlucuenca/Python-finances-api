@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from sqlmodel import Session, select
 from unidecode import unidecode
 from schemas import IndiceBigMacCreate
-from models import IndiceBigMac
+from models import Dolares, IndiceBigMac
 from database import create_db_and_tables, get_session
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -40,135 +40,6 @@ app.add_middleware(
 async def startup_event():
     create_db_and_tables()
 
-
-@app.get("/dolarMayorista")
-def read_dolar_mayorista():
-    # Formateamos la fecha actual
-    formated_datetime = datetime.datetime.now().strftime("%d/%m, %H:%M")
-
-
-    # Solicitamos la pagina y la parseamos
-    website_content = requests.get(
-        "https://es.investing.com/currencies/usd-ars").text
-
-    soup = BeautifulSoup(website_content, 'lxml')
-
-    precio_dolar_mayorista = soup.find(
-        'div', {'data-test': 'instrument-price-last'}).getText()
-
-    precio_formatted = round(float(precio_dolar_mayorista.replace(',', '.')), 2)
-
-    dolar_mayorista = {
-        'id': 'dolar_mayorista_investing',
-        'nombre': "Dolar Mayorista (investing)",
-        'compra': precio_formatted,
-        'venta': precio_formatted,
-        'fechaActualizacion': 'Fecha de actualización: ' + formated_datetime
-    }
-
-    return dolar_mayorista
-
-
-@app.get("/dolares")
-def read_dolars():
-
-    # Formateamos la fecha actual
-    formated_datetime = datetime.datetime.now().strftime("%d/%m, %H:%M")
-
-    # Solicitamos la pagina y la parseamos
-    website_content = requests.get("https://www.dolarhoy.com/").text
-    soup = BeautifulSoup(website_content, 'lxml')
-
-    # Buscamos lo importante de la pagina
-    bloque_dolares = soup.find_all('div', class_='tile is-child')
-
-    # Obtener los primeros 6 elementos - Otros Dolares de importancia
-    primeros_seis = bloque_dolares[:5]
-
-    # Creamos una lista vacia para guardar los dolares
-    dolar_list = []
-
-    for dolar in primeros_seis:
-
-        try:
-            title = dolar.find('a', class_='title').getText().strip()
-            # Obtenemos el div con los valores de venta y compra
-            values = dolar.find('div', class_='values')
-
-            # Obtenemos el precio del dolar - (compra)
-            buy = float(values.find('div', class_='compra').find(
-                'div', class_='val').get_text().strip().replace('$', ''))
-
-            # Obtenemos el precio del dolar - (venta)
-            sell = float(values.find('div', class_='venta').find(
-                'div', class_='val').get_text().strip().replace('$', ''))
-
-            # Obtener el nombre en minúsculas y sin tildes
-            dollars_id = unidecode((title).lower().replace(" ", "_"))
-
-            # Crear un diccionario con la información y agregarlo a la lista
-            dolar = {
-                'id': dollars_id,
-                'nombre': title,
-                'compra': buy,
-                'venta': sell,
-                'fechaActualizacion': 'Fecha de actualización: ' + formated_datetime
-            }
-        except Exception as e:
-            continue
-
-        dolar_list.append(dolar)
-
-    for bloque in bloque_dolares:
-        try:
-            title = bloque.find('div', class_='title').getText().strip()
-        except Exception as e:
-            continue
-
-        if title and 'Dólar Mayorista' in title:
-            buy = float(bloque.find('div', class_='compra').getText(
-            ).strip().replace('$', ''))
-            sell = float(bloque.find('div', class_='venta').getText(
-            ).strip().replace('$', ''))
-            dollars_id = unidecode((title).lower().replace(" ", "_"))
-
-            dolar = {
-                'id': dollars_id + "_dolarhoy",
-                'nombre': title + "(DolarHoy)",
-                'compra': buy,
-                'venta': sell,
-                'fechaActualizacion': 'Fecha de actualización: ' + formated_datetime
-            }
-
-            dolar_list.append(dolar)
-            break
-
-    dolar_mayorista_investing = read_dolar_mayorista()
-
-    dolar_list.append(dolar_mayorista_investing)
-
-    return dolar_list
-
-
-@app.get("/uva")
-def read_uva():
-    preciosUva = requests.get(
-        "https://prestamos.ikiwi.net.ar/api/v1/engine/uva/valores/")
-
-    if (preciosUva.status_code != 200):
-        return "Error al obtener los datos de la API"
-
-    datos = preciosUva.json()
-
-    fecha_actual = datetime.datetime.now().strftime("%d-%m-%Y")
-
-    uva_actual = next(
-        (item for item in datos if item["fecha"] == fecha_actual), None)
-
-    if uva_actual:
-        return uva_actual
-    else:
-        return HTTPException("No se encontró una uva para la fecha actual.")
 
 
 @app.get("/mac")
@@ -249,6 +120,22 @@ def create_mac(db: Session = Depends(get_session)):
     return nuevo_indice
 
 
+@app.post('/dolares')
+def guardar_dolares(db: Session = Depends(get_session)):
+    cotizaciones_dolares = read_dolars()
+
+    for cotizacion_dolar in cotizaciones_dolares:
+        cotizacion_map = Dolares(
+            nombre=cotizacion_dolar["id"],
+            compra=cotizacion_dolar["compra"],
+            venta=cotizacion_dolar["venta"],
+            fechaActualizacion=cotizacion_dolar["fechaActualizacion"]
+        )
+        db.add(cotizacion_map)
+
+    db.commit()
+
+
 def obtener_datos_dolar(db: Session, tipo_dolar: str):
     # Reemplaza 'tipo_dolar' por el nombre del campo correspondiente en tu modelo
     statement = select(getattr(IndiceBigMac, tipo_dolar))
@@ -274,22 +161,30 @@ def analisis_dolares(db: Session = Depends(get_session)):
             resultados[tipo] = {"promedio": None, "desvio_estandar": None}
 
     return resultados
+
+
 @app.get('/obligaciones')
 def get_obligaciones():
     # Configurar las opciones para Chrome en modo headless
     chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Asegura que Chrome se ejecute en modo headless
-    chrome_options.add_argument("--no-sandbox")  # Bypass OS security model, REQUIRED on Linux
-    chrome_options.add_argument("--disable-gpu")  # Aplicable para windows os only
-    chrome_options.add_argument('start-maximized') # maximiza la ventana del navegador
+    # Asegura que Chrome se ejecute en modo headless
+    chrome_options.add_argument("--headless")
+    # Bypass OS security model, REQUIRED on Linux
+    chrome_options.add_argument("--no-sandbox")
+    # Aplicable para windows os only
+    chrome_options.add_argument("--disable-gpu")
+    # maximiza la ventana del navegador
+    chrome_options.add_argument('start-maximized')
     chrome_options.add_argument('disable-infobars')
     chrome_options.add_argument('--disable-extensions')
+    chrome_options.add_argument("--disable-web-security")
 
     # Iniciar el navegador en modo headless
     driver = webdriver.Chrome(options=chrome_options)
 
     # Ahora puedes navegar y realizar acciones como lo harías normalmente
-    driver.get("https://iol.invertironline.com/mercado/cotizaciones/argentina/obligaciones-negociables/todos")
+    driver.get(
+        "https://iol.invertironline.com/mercado/cotizaciones/argentina/obligaciones-negociables/todos")
     print(driver.title)
 
     # Espera hasta que el elemento select esté presente en la página
@@ -310,26 +205,23 @@ def get_obligaciones():
     # Extrae todas las filas de la tabla
     filas = tabla.find_elements(By.TAG_NAME, "tr")
 
-    # Lista para almacenar los datos de cada fila
     datos_tabla = []
-
-    # Itera sobre cada fila
     for fila in filas:
-        celdas = fila.find_elements(By.TAG_NAME, "td")  # o "th" si es necesario
+        celdas = fila.find_elements(By.TAG_NAME, "td")
         fila_datos = []
 
         for index, celda in enumerate(celdas):
             if index == 0:
                 try:
-                    # Intenta obtener el atributo 'data-symbol' del elemento 'a'
                     enlace = celda.find_element(By.TAG_NAME, "a")
                     simbolo = enlace.get_attribute("data-symbol")
                     fila_datos.append(simbolo)
                 except NoSuchElementException:
-                    # Si no hay un elemento 'a', agrega un valor predeterminado o deja la celda vacía
-                    fila_datos.append("Symbol")  # o puedes usar "" para una celda vacía
+                    fila_datos.append("Symbol")
             else:
-                fila_datos.append(celda.text)
+                # Usa la función convertir_valor_numerico para ajustar los valores numéricos
+                valor_ajustado = convertir_valor_numerico(celda.text)
+                fila_datos.append(valor_ajustado)
 
         datos_tabla.append(fila_datos)
 
@@ -341,7 +233,103 @@ def get_obligaciones():
     for fila in datos_tabla[1:]:
         fila_dict = dict(zip(encabezados, fila))
         datos_json.append(fila_dict)
-        
+
     driver.quit()
+
+    return datos_json
+
+
+def convertir_valor_numerico(valor):
+    # Intenta convertir valores numéricos al formato correcto (punto decimal)
+    try:
+        # Primero, verifica si el valor contiene comas que puedan indicar decimales
+        if "," in valor:
+            # Elimina puntos que puedan ser separadores de miles
+            valor_sin_puntos = valor.replace(".", "")
+            # Luego, reemplaza la coma por un punto para el decimal
+            return valor_sin_puntos.replace(",", ".")
+        else:
+            # Devuelve el valor original si no necesita conversión
+            return valor
+    except ValueError:
+        # Devuelve el valor original si ocurre un error en la conversión
+        return valor
+
+
+@app.get('/bonos')
+def get_obligaciones():
+    # Configurar las opciones para Chrome en modo headless
+    chrome_options = Options()
+    # Asegura que Chrome se ejecute en modo headless
+    chrome_options.add_argument("--headless")
+    # Bypass OS security model, REQUIRED on Linux
+    chrome_options.add_argument("--no-sandbox")
+    # Aplicable para windows os only
+    chrome_options.add_argument("--disable-gpu")
+    # maximiza la ventana del navegador
+    chrome_options.add_argument('start-maximized')
+    chrome_options.add_argument('disable-infobars')
+    chrome_options.add_argument('--disable-extensions')
+    chrome_options.add_argument("--disable-web-security")
+
+    # Iniciar el navegador en modo headless
+    driver = webdriver.Chrome(options=chrome_options)
+
+    # Ahora puedes navegar y realizar acciones como lo harías normalmente
+    driver.get(
+        "https://iol.invertironline.com/mercado/cotizaciones/argentina/bonos/todos")
+    print(driver.title)
+
+    # Espera hasta que el elemento select esté presente en la página
+    select_element = WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.NAME, "cotizaciones_length"))
+    )
+
+    # Crea un objeto Select usando el elemento encontrado
+    select_obj = Select(select_element)
+
+    # Selecciona la opción por su valor
+    select_obj.select_by_value("-1")
+
+    tabla = WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.ID, "cotizaciones"))
+    )
+
+    # Extrae todas las filas de la tabla
+    filas = tabla.find_elements(By.TAG_NAME, "tr")
+
+    datos_tabla = []
+    for fila in filas:
+        celdas = fila.find_elements(By.TAG_NAME, "td")
+        fila_datos = []
+
+        for index, celda in enumerate(celdas):
+            if index == 0:
+                try:
+                    enlace = celda.find_element(By.TAG_NAME, "a")
+                    simbolo = enlace.get_attribute("data-symbol")
+                    fila_datos.append(simbolo)
+                except NoSuchElementException:
+                    fila_datos.append("Symbol")
+            else:
+                # Usa la función convertir_valor_numerico para ajustar los valores numéricos
+                valor_ajustado = convertir_valor_numerico(celda.text)
+                fila_datos.append(valor_ajustado)
+
+        datos_tabla.append(fila_datos)
+
+    # Suponiendo que la primera fila contiene los encabezados
+    encabezados = datos_tabla[0]
+    datos_json = []
+
+    # Itera sobre las filas restantes y crea un diccionario para cada una
+    for fila in datos_tabla[1:]:
+        fila_dict = dict(zip(encabezados, fila))
+        datos_json.append(fila_dict)
+
+    driver.quit()
+
+    #ordenar por el symbol esta lista de obligaciones datos_json
+    datos_json.sort(key=lambda x: x['Symbol'])
 
     return datos_json
