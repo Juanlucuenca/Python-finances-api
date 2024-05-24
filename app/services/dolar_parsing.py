@@ -6,7 +6,7 @@ from utils.fetch_webpage import fetch_webpage
 
 # Constantes
 URL_DOLAR_HOY = "https://www.dolarhoy.com/"
-MAX_DOLARS = 6  # Máximo de dólares a extraer
+MAX_DOLARS = 5  # Máximo de dólares a extraer
 
 def parse_dolar_hoy():
     page_content = fetch_webpage(URL_DOLAR_HOY)

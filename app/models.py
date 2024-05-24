@@ -9,7 +9,6 @@ class IndiceBigMac(SQLModel, table=True):
     dolar_blue: float
     dolar_bolsa: float
     dolar_liqui: float
-    dolar_mayorista: float
     dolar_mayorista_sincepo: float
 
 class Dolares(SQLModel, table=True):
