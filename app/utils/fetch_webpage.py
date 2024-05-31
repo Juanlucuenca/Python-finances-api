@@ -2,6 +2,7 @@ from fastapi import HTTPException
 import requests
 
 
+
 def fetch_webpage(url):
     try:
         response = requests.get(url)

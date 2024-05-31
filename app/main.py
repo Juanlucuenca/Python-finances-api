@@ -1,14 +1,31 @@
 from fastapi import FastAPI
-from database import create_db_and_tables
+from db.database import create_db_and_tables
 from fastapi.middleware.cors import CORSMiddleware
 from router import bonos, obligaciones, cotizaciones, analisis
+import subprocess
 
-app = FastAPI()
+app = FastAPI(
+    title="Finance Apis",
+    description="APIs para obtener informacion financiera de bonos, obligaciones, cotizaciones y analisis de mercado",
+    version="v2",
+    )
 
+# Ruta completa al script runner.py
+script_path = "app/runner.py"
+
+# Directorio desde el cual se debe ejecutar el script
+working_directory = "."
+
+@app.on_event("startup")
+async def startup_event():
+    subprocess.Popen(["python",script_path], cwd=working_directory)
+    create_db_and_tables()
+
+# Configuracion de rutas nuevas
+app.include_router(cotizaciones.router, prefix="/api/v2/cotizaciones", tags=["Cotizaciones"])
 app.include_router(bonos.router, prefix="/api/v2/bonos", tags=["bonos"])
 app.include_router(obligaciones.router, prefix="/api/v2/obligaciones", tags=["Obligaciones"])
 app.include_router(analisis.router, prefix="/api/v2/analisis", tags=["Analisis"])
-app.include_router(cotizaciones.router, prefix="/api/v2/cotizaciones", tags=["Cotizaciones"])
 
 # Añadimos CORS para permitir el acceso desde cualquier origen
 origins = ["*"]
@@ -20,6 +37,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-def startup_event():
-    create_db_and_tables()
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
+

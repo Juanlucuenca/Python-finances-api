@@ -1,18 +1,16 @@
-from cachetools import cached, TTLCache
+from typing import List
 from fastapi import APIRouter, HTTPException
-from services.iol_parsing import iol_parsing, InversionType
+from fastapi.params import Depends
+from sqlmodel import Session
+from db.schemas import BonoDB
+from db.database import get_session
+from db.repository.get_all import getall
 
 router = APIRouter()
 
-IOL_API_PARAM = InversionType.BONOS.value
-
-# Establece el caché con TTL de 800 segundos (13 minutos y 20 segundos)
-cache = TTLCache(maxsize=100, ttl=800)
-
-@router.get("/")
-@cached(cache)
-def get_obligaciones():
+@router.get("/", response_model=List[BonoDB])
+def get_bonos(db: Session = Depends(get_session)):
     try:
-        return iol_parsing(IOL_API_PARAM)
+        return getall(db, BonoDB)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
