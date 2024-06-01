@@ -28,7 +28,6 @@ def post_mac(db: Session = Depends(get_session)):
     db.commit()
     db.refresh(nuevo_indice)
 
-
     return nuevo_indice
 
 @router.get("/analisis-mac")
@@ -51,7 +50,6 @@ def analisis_dolares(db: Session = Depends(get_session)):
     return resultados
 
 def obtener_datos_dolar(db: Session, tipo_dolar: str):
-    # Reemplaza 'tipo_dolar' por el nombre del campo correspondiente en tu modelo
     statement = select(getattr(IndiceBigMac, tipo_dolar))
     resultados = db.exec(statement).all()
     return [res for res in resultados if res is not None]

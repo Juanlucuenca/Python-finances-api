@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
+from models.DolarResponse import DolarResponse
 from db.database import get_session
 from db.schemas import DolarDB
 from db.repository.get_all import getall
@@ -9,7 +10,7 @@ from services.get_uva import uva_parsing
 router = APIRouter()
 
 
-@router.get("/dolares", response_model=List[DolarDB])
+@router.get("/dolares", response_model=List[DolarResponse])
 def get_dolars(db: Session = Depends(get_session)):
     try:
         return getall(db, DolarDB)

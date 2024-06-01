@@ -1,13 +1,14 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
+from models.IolResponse import IolResponse
 from db.database import get_session
 from db.repository.get_all import getall
 from db.schemas import ObligacionDB
 
 router = APIRouter()
 
-@router.get("/", response_model=List[ObligacionDB])
+@router.get("/", response_model=List[IolResponse])
 def get_obligaciones(db: Session = Depends(get_session)):
     try:
         return getall(db, ObligacionDB)

@@ -7,7 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 
 from models.IolResponse import IolResponse
-from utils.convert_to_numeric_value import convert_to_numeric_value
+from utils.convert_to_float import convert_to_float
 
 
 def iol_parsing(type: str) -> List[IolResponse]:
@@ -53,7 +53,7 @@ def iol_parsing(type: str) -> List[IolResponse]:
                     simbolo = enlace.get_attribute("data-symbol") if enlace else "Symbol"
                     fila_datos.append(simbolo)
                 else:
-                    fila_datos.append(convert_to_numeric_value(celda.text))
+                    fila_datos.append(convert_to_float(celda.text))
             datos_tabla.append(fila_datos)
 
         encabezados = datos_tabla[0]
