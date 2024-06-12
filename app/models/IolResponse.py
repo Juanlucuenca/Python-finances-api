@@ -16,6 +16,7 @@ class IolResponse(BaseModel):
     monto_operado: Optional[float]
     tir: Optional[str]
     duracion_md: Optional[float]
+    update_date: Optional[str] = None
 
     class Config:
         from_attributes = True

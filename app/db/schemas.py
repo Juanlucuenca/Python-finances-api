@@ -3,6 +3,9 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 
 
+def get_current_datetime():
+    return datetime.datetime.now().strftime("%d/%m, %H:%M")
+
 class IndiceBigMac(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
     dolar_oficial: float
@@ -10,14 +13,14 @@ class IndiceBigMac(SQLModel, table=True):
     dolar_bolsa: float
     contado_con_liqui: float
     dolar_mayorista_sincepo: float
-    entry_date: str = Field(default=datetime.datetime.now().strftime("%d/%m, %H:%M"))
+    entry_date: str = Field(default_factory=get_current_datetime)
 
 class DolarDB(SQLModel, table=True):
     id: str = Field(default=None, primary_key=True)
     name: str | None = Field(default=None, index=True)
     buy_price: float
     sell_price: float
-    update_date: str = Field(default=datetime.datetime.now().strftime("%d/%m, %H:%M"))
+    update_date: str = Field(default_factory=get_current_datetime)
 
 class ObligacionDB(SQLModel, table=True):
     symbol: str = Field(default=None, primary_key=True)
@@ -33,7 +36,7 @@ class ObligacionDB(SQLModel, table=True):
     monto_operado: Optional[float] = Field(default=None, alias="Monto Operado")
     tir: Optional[str] = Field(default=None, alias="T. I. R.")
     duracion_md: Optional[int] = Field(default=None, alias="Duración (MD)")
-    update_date: str = Field(default=datetime.datetime.now().strftime("%d/%m, %H:%M"))
+    update_date: str = Field(default_factory=get_current_datetime)
 
 class BonoDB(SQLModel, table=True):
     symbol: str = Field(default=None, primary_key=True)
@@ -49,4 +52,4 @@ class BonoDB(SQLModel, table=True):
     monto_operado: Optional[float] = Field(default=None, alias="Monto Operado")
     tir: Optional[str] = Field(default=None, alias="T. I. R.")
     duracion_md: Optional[int] = Field(default=None, alias="Duración (MD)")
-    update_date: str = Field(default=datetime.datetime.now().strftime("%d/%m, %H:%M"))
+    update_date: str = Field(default_factory=get_current_datetime)
