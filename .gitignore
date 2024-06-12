@@ -213,7 +213,6 @@ Thumbs.db
 Thumbs.db:encryptable
 ehthumbs.db
 ehthumbs_vista.db
-dollarApi.db
 
 # Dump file
 *.stackdump
@@ -236,4 +235,5 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/python,windows,macos
 
-*.db
+finance.db
+app/finance.db
