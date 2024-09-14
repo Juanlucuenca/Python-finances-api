@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from db.database import create_db_and_tables
 from fastapi.middleware.cors import CORSMiddleware
 from router import bonos, obligaciones, cotizaciones, analisis
@@ -36,6 +37,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+
+class CustomErrorHandler(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        try:
+            response = await call_next(request)
+        except Exception as exc:
+            return JSONResponse(
+                status_code=500,
+                content={"message": "An unexpected error occurred"}
+            )
+        return response
+
+app.add_middleware(CustomErrorHandler)
+
 
 if __name__ == "__main__":
     import uvicorn
